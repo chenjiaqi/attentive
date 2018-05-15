@@ -56,7 +56,7 @@ static const char *const nb501_urc_responses[] = {
 struct cellular_nb501 {
     struct cellular dev;
     struct modem_state state;
-    struct socket_info sockets[NUMBER_SOCKETS];
+    //struct socket_info sockets[NUMBER_SOCKETS];
 };
 
 static enum at_response_type scan_line(const char *line, size_t len, void *arg)
@@ -91,7 +91,6 @@ static void handle_urc(const char *line, size_t len, void *arg)
     {
         DBG_W("hello world");
     }
-
 
     DBG_V("U> %s\r\n", line);
 }
@@ -151,97 +150,36 @@ static int nb501_shutdown(struct cellular *modem)
 {
     at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
     at_command_simple(modem->at, "AT+CFUN=0");
-
     return 0;
 }
 
 static int nb501_get_free_port(struct cellular *modem) {
-    struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
-
-    for(int port = 444; port < 444 + NUMBER_SOCKETS; port++) {
-        bool available = true;
-
-        for(int i = 0; i < NUMBER_SOCKETS; i++) {
-            struct socket_info *info = &priv->sockets[i];
-            if(info->status == SOCKET_STATUS_CONNECTED && info->local_port == port) {
-                available = false;
-                break;
-            }
-        }
-
-        if(available) {
-            return port;
-        }
-    }
-
-    return -1;
+    return 0;
 }
 
 static int nb501_socket_connect(struct cellular *modem, const char *host, uint16_t port)
 {
-    struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
-    int connid = -1;
-
-    if(host == NULL && port == 0) {
-        return CELLULAR_NB_CONNID;
-    } else {
-        /* Create an udp socket. */
-        int local_port = nb501_get_free_port(modem);
-        at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-        const char *response = at_command(modem->at, "AT+NSOCR=DGRAM,17,%d", local_port);
-        at_simple_scanf(response, "%d", &connid);
-        if(connid >= NUMBER_SOCKETS) {
-            return -1;
-        } else {
-            struct socket_info *info = &priv->sockets[connid];
-            info->host = host;
-            info->port = port;
-            info->local_port = local_port;
-            info->status = SOCKET_STATUS_CONNECTED;
-        }
-    }
-
-    return connid;
+    return 0;
 }
 
 static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void *buffer, size_t amount, int flags)
 {
     struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
     (void) flags;
-    #if 0
-    if(connid == CELLULAR_NB_CONNID) {
-        amount = amount > 512 ? 512 : amount;
-        at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-        at_send(modem->at, "AT+NMGS=%d,", amount);
-        at_send_hex(modem->at, buffer, amount);
-        at_command_simple(modem->at, "");
-        return amount;
-    } else if(connid < NUMBER_SOCKETS) {
-        struct socket_info *info = &priv->sockets[connid];
-        if(info->status == SOCKET_STATUS_CONNECTED) {
-            amount = amount > 512 ? 512 : amount;
-            at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-            at_send(modem->at, "AT+NSOST=%d,%s,%d,%d,", connid, info->host, info->port, amount);
-            at_send_hex(modem->at, buffer, amount);
-            const char* response = at_command(modem->at, "");
-            at_simple_scanf(response, "%*d, %d", &amount);
-            return amount;
-        }
+
+    at_set_timeout(modem->at, AT_TIMEOUT_LONG);
+    const char *response = at_command(modem->at, "AT+NMGS=2,3131");
+    if(response == NULL) {
+        DBG_I("ERROR");
+        return -2;
     }
-    #endif
-    #if 0
-    at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-    at_send(modem->at, "AT+NMGS=%d,", amount);
-    at_send_hex(modem->at, buffer, amount);
-    at_command_simple(modem->at, "");
-    #endif
-    at_command_simple(modem->at,"AT+CGPADDR");
     return 0;
 }
 
 static int scanner_nmgr(const char *line, size_t len, void *arg)
 {
     (void) arg;
+
 
     if (at_prefix_in_table(line, nb501_urc_responses)) {
         return AT_RESPONSE_URC;
@@ -305,74 +243,6 @@ static ssize_t nb501_socket_recv(struct cellular *modem, int connid, void *buffe
 {
     struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
     (void) flags;
-
-    if(connid == CELLULAR_NB_CONNID) {
-        /* Perform the read. */
-        at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-        at_set_character_handler(modem->at, character_handler_nmgr);
-        at_set_command_scanner(modem->at, scanner_nmgr);
-        const char *response = at_command(modem->at, "AT+NMGR");
-        if (response == NULL) {
-            DBG_W(">>>>NO RESPONSE\r\n");
-            return -2;
-        }
-        if (*response == '\0') {
-            return 0;
-        }
-        /* Find the header line. */
-        int read;
-        if(sscanf(response, "%d,", &read) != 1) {
-            DBG_I(">>>>BAD RESPONSE\r\n");
-            return -1;
-        }
-
-        /* Locate the payload. */
-        const char *data = strchr(response, '\n');
-        if (data++ == NULL) {
-            DBG_I(">>>>NO DATA\r\n");
-            return -1;
-        }
-
-        /* Copy payload to result buffer. */
-        memcpy((char *)buffer, data, read);
-
-        return read;
-    } else if(connid < NUMBER_SOCKETS) {
-        struct socket_info *info = &priv->sockets[connid];
-        if(info->status == SOCKET_STATUS_CONNECTED) {
-            /* Perform the read. */
-            at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-            at_set_character_handler(modem->at, character_handler_nsorf);
-            at_set_command_scanner(modem->at, scanner_nsorf);
-            const char *response = at_command(modem->at, "AT+NSORF=%d,%d", connid, length);
-            if (response == NULL) {
-                DBG_W(">>>>NO RESPONSE\r\n");
-                return -2;
-            }
-            if (*response == '\0') {
-                return 0;
-            }
-            /* Find the header line. */
-            int read;
-            if(sscanf(response, "%*d,%*[^,],%*d,%d", &read) != 1) {
-                DBG_I(">>>>BAD RESPONSE\r\n");
-                return -1;
-            }
-
-            /* Locate the payload. */
-            const char *data = strchr(response, '\n');
-            if (data++ == NULL) {
-                DBG_I(">>>>NO DATA\r\n");
-                return -1;
-            }
-
-            /* Copy payload to result buffer. */
-            memcpy((char *)buffer, data, read);
-
-            return read;
-        }
-    }
-
     return 0;
 }
 
@@ -383,20 +253,6 @@ static int nb501_socket_waitack(struct cellular *modem, int connid)
 
 static int nb501_socket_close(struct cellular *modem, int connid)
 {
-    struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
-
-    if(connid == CELLULAR_NB_CONNID) {
-        return 0;
-    } else if(connid < NUMBER_SOCKETS) {
-        struct socket_info *info = &priv->sockets[connid];
-
-        if(info->status == SOCKET_STATUS_CONNECTED) {
-            info->status = SOCKET_STATUS_UNKNOWN;
-            at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-            at_command_simple(modem->at, "AT+NSOCL=%d", connid);
-        }
-    }
-
     return 0;
 }
 
@@ -457,7 +313,6 @@ static int nb501_op_nccid(struct cellular *modem, char *buf, size_t len)
     } else {
         return -1;
     }
-
     return 0;
 }
 
@@ -474,8 +329,6 @@ static char character_handler_nrb(char ch, char *line, size_t len, void *arg) {
         ch = ' ';
         line[len - 1] = ch;
     }
-    
-
     return ch;
 }
 
@@ -485,12 +338,10 @@ static int nb501_op_reset(struct cellular *modem)
 
     // Cleanup
     memset(&priv->state, 0, sizeof(priv->state));
-    memset(priv->sockets, 0, sizeof(priv->sockets));
 
     // Set CDP
     at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-    //at_command_simple(modem->at, "AT+CFUN=0");
-    //at_command_simple(modem->at, "AT+NCDP=180.101.147.115");
+    at_command_simple(modem->at, "AT+CFUN=0");
 
     // Reboot
     at_set_timeout(modem->at, AT_TIMEOUT_LONG);
@@ -500,19 +351,13 @@ static int nb501_op_reset(struct cellular *modem)
         return -2;
     } else {
         /* Delay 2 seconds to continue */
-        #if 0
         vTaskDelay(pdMS_TO_TICKS(2000));
-
         at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-        at_command_simple(modem->at, "AT+CMEE=1");
-        
-        at_command_simple(modem->at, "AT+CSCON=1");
+        at_command(modem->at, "AT+CMEE=1");
+        at_command(modem->at, "AT+CSCON=1");
         at_command_simple(modem->at, "AT+NPSMR=1");
         at_command_simple(modem->at, "AT+NNMI=1");
-        #endif
-        
-        //at_command_simple(modem->at, "AT+CGDCONT=1,\"IP\",\"%s\"", modem->apn);
-        //at_command_simple(modem->at, "AT+CPSMS=1,,,01011111,00000000");
+        at_command_simple(modem->at, "AT+CPSMS=1,,,01011111,00000000");
     }
 
     return 0;
@@ -521,7 +366,6 @@ static int nb501_op_reset(struct cellular *modem)
 static int nb501_suspend(struct cellular *modem)
 {
     at_suspend(modem->at);
-
     return 0;
 }
 
@@ -592,10 +436,8 @@ static struct cellular_nb501 cellular;
 struct cellular *cellular_alloc(void)
 {
     struct cellular_nb501 *modem = &cellular;
-
     memset(modem, 0, sizeof(*modem));
     modem->dev.ops = &nb501_ops;
-
     return (struct cellular *) modem;
 }
 

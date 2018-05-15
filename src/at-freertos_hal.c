@@ -29,11 +29,8 @@ struct at_freertos {
     char response[AT_BUF_SIZE];
 
     TaskHandle_t xTask;
-    /*SemaphoreHandle_t xMutex;*/
     SemaphoreHandle_t xSem;
-    //Peripheral_Descriptor_t xUART;
     hal_uart_t * xUART;
-
 
     bool running : 1;       /**< Reader thread should be running. */
     bool open : 1;          /**< FD is valid. Set/cleared by open()/close(). */
@@ -46,7 +43,6 @@ void at_reader_thread(void *arg);
 static void handle_response(const char *buf, size_t len, void *arg)
 {
     struct at_freertos *priv = (struct at_freertos *) arg;
-    DBG_I("RESPONSE");
 
     /* The mutex is held by the reader thread; don't reacquire. */
     len = len < AT_BUF_SIZE - 1 ? len : AT_BUF_SIZE - 1;
@@ -54,6 +50,7 @@ static void handle_response(const char *buf, size_t len, void *arg)
     priv->response[len] = '\0';
     priv->waiting = false;
     xSemaphoreGive(priv->xSem);
+    
 }
 
 static void handle_urc(const char *buf, size_t len, void *arg)
@@ -83,7 +80,7 @@ static const struct at_parser_callbacks parser_callbacks = {
     .scan_line = scan_line,
 };
 
-struct at *at_alloc_freertos(void)
+struct at *at_alloc_freertos(hal_uart_t *p_uart)
 {
     static struct at_freertos at;
     struct at_freertos *priv = &at;
@@ -92,14 +89,20 @@ struct at *at_alloc_freertos(void)
 
     /* allocate underlying parser */
     priv->at.parser = at_parser_alloc(&parser_callbacks, (void *) priv);
+    priv->xUART = p_uart;
 
     /* initialize and start reader thread */
     priv->running = true;
     /*priv->xMutex = xSemaphoreCreateBinary();*/
     // CAUSING: create the reader task at high priority
     priv->xSem = xSemaphoreCreateBinary();
+    if(!priv->xSem)
+    {
+        DBG_E("xSem create error");
+    }
+
     //xTaskCreate(at_reader_thread, "ATReadTask", configMINIMAL_STACK_SIZE * 2, priv, 4, &priv->xTask);
-    xTaskCreate(at_reader_thread, "ATReadTask", 256, priv, 4, &priv->xTask);
+    xTaskCreate(at_reader_thread, "ATReadTask", 384, priv, 5, &priv->xTask);
 
     return (struct at *) priv;
 }
@@ -109,25 +112,16 @@ int at_open(struct at *at)
     DBG_I(__FUNCTION__);
     struct at_freertos *priv = (struct at_freertos *) at;
 
-    //priv->xUART = FreeRTOS_open(boardCELL_UART, 0);
-    priv->xUART = hal_uart_get_instance(0);
+    //priv->xUART = hal_uart_get_instance(0);
     if(priv->xUART == NULL) {
-        DBG_E("xUART is NULL %08x",(uint32_t )at);
+        DBG_E("xUART is NULL ");
         return -1;
     } else {
-        DBG_I("GET UART");
-        //priv->xUART = hal_uart_get_instance(0);
-        /*
-        FreeRTOS_ioctl(priv->xUART, ioctlUSE_DMA_TX, (void*)0);
-        FreeRTOS_ioctl(priv->xUART, ioctlUSE_CIRCULAR_BUFFER_RX, (void*)AT_BUF_SIZE);
-        FreeRTOS_ioctl(priv->xUART, ioctlSET_TX_TIMEOUT, (void*)pdMS_TO_TICKS(200));
-        FreeRTOS_ioctl(priv->xUART, ioctlSET_RX_TIMEOUT, (void*)pdMS_TO_TICKS(100));
-        */
+        priv->xUART->ops->set_rx_enable(priv->xUART,true);
     }
 
     priv->open = true;
-    //priv->xUART->ops->set_rx_enable(priv->xUART,true);
-    /*xSemaphoreGive(priv->xMutex);*/
+    
     xSemaphoreTake(priv->xSem, 0);
     return 0;
 }
@@ -220,16 +214,15 @@ static const char *_at_command(struct at_freertos *priv, const void *data, size_
         /*return NULL;*/
     /*}*/
 
-    //DBG_I(__FUNCTION__);
     /* Bail out if the channel is closing or closed. */
     if (!priv->open) {
         /*xSemaphoreGive(priv->xMutex);*/
-        DBG_E("PRI NOT OPEN");
         return NULL;
     }
 
     /* Prepare parser. */
     at_parser_await_response(priv->at.parser);
+    //DBG_I("parser state %d",(priv->at.parser)->state);
 
     /* Send the command. */
     // FIXME: handle interrupts, short writes, errors, etc.
@@ -247,15 +240,13 @@ static const char *_at_command(struct at_freertos *priv, const void *data, size_
     /*xSemaphoreGive(priv->xMutex);*/
     xSemaphoreTake(priv->xSem, 0);
     xSemaphoreTake(priv->xSem, 0);
+    //xSemaphoreTake(priv->xSem, 0);
     int timeout = priv->timeout;
-    DBG_I("time out is %d", timeout);
     while (timeout-- && priv->open && priv->waiting) {
-        if (xSemaphoreTake(priv->xSem, pdMS_TO_TICKS(1000))) {
-            //priv->waiting = false;
-            DBG_I("wait for response");
+
+        if (xSemaphoreTake(priv->xSem, pdMS_TO_TICKS(1000)) == pdTRUE) {
             break;
         }
-        DBG_I("timeout");
     }
 
     /*xSemaphoreTake(priv->xMutex, pdMS_TO_TICKS(1000));*/
@@ -435,7 +426,7 @@ void at_reader_thread(void *arg)
         /* Wait for the port descriptor to be valid. */
         else if(!priv->open) {
             
-            DBG_W("Not open");
+            //DBG_W("Not open");
             vTaskDelay(pdMS_TO_TICKS(200));
             continue;
         }

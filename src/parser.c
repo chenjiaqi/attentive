@@ -203,6 +203,7 @@ static void parser_handle_line(struct at_parser *parser)
         /* Discard the line from the buffer. */
         parser_discard_line(parser);
     }
+    
 
     /* Act on the response type. */
     switch (type & _AT_RESPONSE_TYPE_MASK) {

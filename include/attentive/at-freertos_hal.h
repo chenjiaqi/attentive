@@ -6,10 +6,11 @@
  * published by Sam Hocevar. See the COPYING file for more details.
  */
 
-#ifndef ATTENTIVE_AT_UNIX_H
-#define ATTENTIVE_AT_UNIX_H
+#ifndef ATTENTIVE_AT_FREERTOS_HAL_H
+#define ATTENTIVE_AT_FREERTOS_HAL_H
 
 #include <attentive/at.h>
+#include "uart.h"
 
 /**
  * Create an AT channel instance.
@@ -18,7 +19,7 @@
  * @param baudrate If non-zero, sets device baudrate (see termios.h).
  * @returns Instance pointer on success, NULL and sets errno on failure.
  */
-struct at *at_alloc_freertos(void);
+struct at *at_alloc_freertos(hal_uart_t *p_uart);
 
 #endif
 
