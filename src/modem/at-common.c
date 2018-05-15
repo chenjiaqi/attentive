@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "at-common.h"
+#include "debug.h"
 #define printf(...)
 
 
@@ -156,6 +157,7 @@ int cellular_op_cops(struct cellular *modem)
 
 int cellular_op_test(struct cellular *modem)
 {
+    DBG_I(__FUNCTION__);
     at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
     at_command_simple(modem->at, "AT");
 

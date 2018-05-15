@@ -9,6 +9,7 @@
 #include <attentive/cellular.h>
 
 #include "modem/at-common.h"
+#include "nrf_log.h"
 #define printf(...)
 
 

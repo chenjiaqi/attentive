@@ -19,7 +19,7 @@
 #include "debug.h"
 
 /* Defines -------------------------------------------------------------------*/
-DBG_SET_LEVEL(DBG_LEVEL_D);
+//DBG_SET_LEVEL(DBG_LEVEL_D);
 
 #define AUTOBAUD_ATTEMPTS         10
 #define NUMBER_SOCKETS            7
@@ -76,7 +76,8 @@ static void handle_urc(const char *line, size_t len, void *arg)
     struct cellular_nb501 *modem = (struct cellular_nb501*) arg;
     (void) len;
     int state = 0;
-
+    //DBG_E("STATLUS CHANGED");
+    int length = 0;
     if(sscanf(line, "+CSCON:%*d,%d", &state) == 1) {
         modem->state.radio_connected = state;
     } else if(sscanf(line, "+CSCON:%d", &state) == 1) {
@@ -86,6 +87,11 @@ static void handle_urc(const char *line, size_t len, void *arg)
     } else if(sscanf(line, "+NPSMR:%d", &state) == 1) {
         modem->state.power_saving = state;
     }
+    else if (sscanf(line,"+NNMI:%d",&length) == 1)
+    {
+        DBG_W("hello world");
+    }
+
 
     DBG_V("U> %s\r\n", line);
 }
@@ -202,7 +208,7 @@ static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void 
 {
     struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
     (void) flags;
-
+    #if 0
     if(connid == CELLULAR_NB_CONNID) {
         amount = amount > 512 ? 512 : amount;
         at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
@@ -222,7 +228,14 @@ static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void 
             return amount;
         }
     }
-
+    #endif
+    #if 0
+    at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
+    at_send(modem->at, "AT+NMGS=%d,", amount);
+    at_send_hex(modem->at, buffer, amount);
+    at_command_simple(modem->at, "");
+    #endif
+    at_command_simple(modem->at,"AT+CGPADDR");
     return 0;
 }
 
@@ -451,6 +464,8 @@ static int nb501_op_nccid(struct cellular *modem, char *buf, size_t len)
 static char character_handler_nrb(char ch, char *line, size_t len, void *arg) {
     (void) arg;
 
+    NRF_LOG_RAW_INFO("%c",ch);
+
     if(ch > 0x1F && ch < 0x7F) {
 
     } else if(ch == '\r' || ch == '\n') {
@@ -459,6 +474,7 @@ static char character_handler_nrb(char ch, char *line, size_t len, void *arg) {
         ch = ' ';
         line[len - 1] = ch;
     }
+    
 
     return ch;
 }
@@ -473,24 +489,30 @@ static int nb501_op_reset(struct cellular *modem)
 
     // Set CDP
     at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-    at_command_simple(modem->at, "AT+CFUN=0");
-    at_command_simple(modem->at, "AT+NCDP=180.101.147.115");
+    //at_command_simple(modem->at, "AT+CFUN=0");
+    //at_command_simple(modem->at, "AT+NCDP=180.101.147.115");
 
     // Reboot
     at_set_timeout(modem->at, AT_TIMEOUT_LONG);
     at_set_character_handler(modem->at, character_handler_nrb);
     if(at_command(modem->at, "AT+NRB") == NULL) {
+        DBG_E("NRT RET NULL");
         return -2;
     } else {
         /* Delay 2 seconds to continue */
+        #if 0
         vTaskDelay(pdMS_TO_TICKS(2000));
 
         at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
         at_command_simple(modem->at, "AT+CMEE=1");
+        
         at_command_simple(modem->at, "AT+CSCON=1");
         at_command_simple(modem->at, "AT+NPSMR=1");
-        at_command_simple(modem->at, "AT+CGDCONT=1,\"IP\",\"%s\"", modem->apn);
-        at_command_simple(modem->at, "AT+CPSMS=1,,,01011111,00000000");
+        at_command_simple(modem->at, "AT+NNMI=1");
+        #endif
+        
+        //at_command_simple(modem->at, "AT+CGDCONT=1,\"IP\",\"%s\"", modem->apn);
+        //at_command_simple(modem->at, "AT+CPSMS=1,,,01011111,00000000");
     }
 
     return 0;
