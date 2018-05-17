@@ -134,7 +134,7 @@ int at_close(struct at *at)
     priv->open = false;
 
     //FreeRTOS_close(priv->xUART);
-    priv->xUART->ops->deinit(priv->xUART);
+    //priv->xUART->ops->deinit(priv->xUART);
     priv->xUART = NULL;
 
     return 0;
@@ -176,7 +176,6 @@ int at_resume(struct at *at)
     if(priv != NULL && priv->xTask != NULL) {
         vTaskResume(priv->xTask);
     }
-
     return 0;
 }
 

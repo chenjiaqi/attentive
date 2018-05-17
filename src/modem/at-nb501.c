@@ -168,18 +168,17 @@ static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void 
     (void) flags;
 
     at_set_timeout(modem->at, AT_TIMEOUT_LONG);
-    const char *response = at_command(modem->at, "AT+NMGS=2,3131");
-    if(response == NULL) {
-        DBG_I("ERROR");
-        return -2;
-    }
-    return 0;
+    //const char *response = at_command(modem->at, "AT+NMGS=5,0003313131");
+    at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
+    at_send(modem->at, "AT+NMGS=%d,", amount);
+    at_send_hex(modem->at, buffer, amount);
+    at_command_simple(modem->at, "");
+    return amount;
 }
 
 static int scanner_nmgr(const char *line, size_t len, void *arg)
 {
     (void) arg;
-
 
     if (at_prefix_in_table(line, nb501_urc_responses)) {
         return AT_RESPONSE_URC;
@@ -303,9 +302,11 @@ static int nb501_op_imei(struct cellular *modem, char *buf, size_t len)
 
 static int nb501_op_nccid(struct cellular *modem, char *buf, size_t len)
 {
+    NRF_LOG_INFO(__FUNCTION__);
     at_set_timeout(modem->at, AT_TIMEOUT_LONG);
     const char *response = at_command(modem->at, "AT+NCCID");
     if(response == NULL) {
+        NRF_LOG_ERROR("NULL");
         return -2;
     }
     if(len > CELLULAR_ICCID_LENGTH && sscanf(response, "+NCCID:%21s", buf) == 1) {
