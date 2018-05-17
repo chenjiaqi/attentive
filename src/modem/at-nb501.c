@@ -100,9 +100,6 @@ static const struct at_callbacks nb501_callbacks = {
     .handle_urc = handle_urc,
 };
 
-
-
-
 static int nb501_attach(struct cellular *modem)
 {
     at_set_callbacks(modem->at, &nb501_callbacks, (void *) modem);
