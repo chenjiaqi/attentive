@@ -115,7 +115,7 @@ static int nb501_attach(struct cellular *modem)
     }
 
     /* Delay 2 seconds to continue */
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    //vTaskDelay(pdMS_TO_TICKS(2000));
 
     /* Initialize modem. */
     static const char *const init_strings[] = {
@@ -129,6 +129,7 @@ static int nb501_attach(struct cellular *modem)
 
 static int nb501_detach(struct cellular *modem)
 {
+    NRF_LOG_INFO(__FUNCTION__);
     at_set_callbacks(modem->at, NULL, NULL);
     return 0;
 }
@@ -441,6 +442,7 @@ struct cellular *cellular_alloc(void)
 
 void cellular_free(struct cellular *modem)
 {
+    NRF_LOG_INFO("at free");
 }
 
 /* vim: set ts=4 sw=4 et: */

@@ -50,7 +50,6 @@ static void handle_response(const char *buf, size_t len, void *arg)
     priv->response[len] = '\0';
     priv->waiting = false;
     xSemaphoreGive(priv->xSem);
-    
 }
 
 static void handle_urc(const char *buf, size_t len, void *arg)
@@ -85,7 +84,7 @@ struct at *at_alloc_freertos(hal_uart_t *p_uart)
     static struct at_freertos at;
     struct at_freertos *priv = &at;
     
-    memset(priv, 0, sizeof(struct at_freertos));
+    //memset(priv, 0, sizeof(struct at_freertos));
 
     /* allocate underlying parser */
     priv->at.parser = at_parser_alloc(&parser_callbacks, (void *) priv);
@@ -95,14 +94,26 @@ struct at *at_alloc_freertos(hal_uart_t *p_uart)
     priv->running = true;
     /*priv->xMutex = xSemaphoreCreateBinary();*/
     // CAUSING: create the reader task at high priority
-    priv->xSem = xSemaphoreCreateBinary();
+    if(priv->xSem == NULL)
+    {
+        DBG_I("Create Xsem");
+        priv->xSem = xSemaphoreCreateBinary();
+    }
     if(!priv->xSem)
     {
         DBG_E("xSem create error");
     }
 
     //xTaskCreate(at_reader_thread, "ATReadTask", configMINIMAL_STACK_SIZE * 2, priv, 4, &priv->xTask);
-    xTaskCreate(at_reader_thread, "ATReadTask", 384, priv, 5, &priv->xTask);
+    if(priv->xTask == NULL)
+    {
+        DBG_I("Create Read Thread");
+        BaseType_t ret = xTaskCreate(at_reader_thread, "ATReadTask", 384, priv, 5, &priv->xTask);
+        if (ret != pdPASS)
+        {
+            DBG_E("task create failed");
+        }
+    }
 
     return (struct at *) priv;
 }
@@ -144,18 +155,24 @@ void at_free(struct at *at)
 {
     struct at_freertos *priv = (struct at_freertos *) at;
 
+    NRF_LOG_INFO("AT FREE");
+
     /* make sure the channel is closed */
     at_close(at);
 
     /* ask the reader thread to terminate */
     priv->running = false;
+
+    #if 0
     if(priv->xTask != NULL) {
+        NRF_LOG_INFO("DELETE TASK");
         vTaskDelete(priv->xTask);
     }
     /* delete the semaphore */
     if(priv->xSem != NULL) {
         vSemaphoreDelete(priv->xSem);
     }
+    #endif
 }
 
 int at_suspend(struct at *at)
@@ -318,8 +335,7 @@ bool _at_send(struct at_freertos *priv, const void *data, size_t size)
     // FIXME: handle interrupts, short writes, errors, etc.
     //return FreeRTOS_write(priv->xUART, data, size) == size;
     return priv->xUART->ops->write(priv->xUART,data,size);
-}
-
+} 
 bool at_send(struct at *at, const char *format, ...)
 {
     struct at_freertos *priv = (struct at_freertos *) at;
@@ -418,7 +434,7 @@ void at_reader_thread(void *arg)
     while (true) {
         if (!priv->running) {
 
-            DBG_W("Not running");
+            //DBG_W("Not running");
             vTaskDelay(pdMS_TO_TICKS(200));
             continue;
         }
