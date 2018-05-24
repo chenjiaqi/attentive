@@ -167,7 +167,6 @@ static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void 
 
     at_set_timeout(modem->at, AT_TIMEOUT_LONG);
     //const char *response = at_command(modem->at, "AT+NMGS=5,0003313131");
-    at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
     at_send(modem->at, "AT+NMGS=%d,", amount);
     at_send_hex(modem->at, buffer, amount);
     at_command_simple(modem->at, "");
