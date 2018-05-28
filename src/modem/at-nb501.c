@@ -151,9 +151,10 @@ static int nb501_shutdown(struct cellular *modem)
     return 0;
 }
 
-static int nb501_get_free_port(struct cellular *modem) {
+/*static int nb501_get_free_port(struct cellular *modem) {
     return 0;
 }
+*/
 
 static int nb501_socket_connect(struct cellular *modem, const char *host, uint16_t port)
 {
@@ -162,7 +163,7 @@ static int nb501_socket_connect(struct cellular *modem, const char *host, uint16
 
 static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void *buffer, size_t amount, int flags)
 {
-    struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
+    //struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
     (void) flags;
 
     at_set_timeout(modem->at, AT_TIMEOUT_LONG);
@@ -173,6 +174,7 @@ static ssize_t nb501_socket_send(struct cellular *modem, int connid, const void 
     return amount;
 }
 
+/*
 static int scanner_nmgr(const char *line, size_t len, void *arg)
 {
     (void) arg;
@@ -189,7 +191,9 @@ static int scanner_nmgr(const char *line, size_t len, void *arg)
 
     return AT_RESPONSE_UNKNOWN;
 }
+*/
 
+/*
 static char character_handler_nmgr(char ch, char *line, size_t len, void *arg) {
     struct at *priv = (struct at *) arg;
 
@@ -203,7 +207,9 @@ static char character_handler_nmgr(char ch, char *line, size_t len, void *arg) {
 
     return ch;
 }
+*/
 
+/*
 static int scanner_nsorf(const char *line, size_t len, void *arg)
 {
     (void) arg;
@@ -220,7 +226,8 @@ static int scanner_nsorf(const char *line, size_t len, void *arg)
 
     return AT_RESPONSE_UNKNOWN;
 }
-
+*/
+/*
 static char character_handler_nsorf(char ch, char *line, size_t len, void *arg) {
     struct at *priv = (struct at *) arg;
 
@@ -234,10 +241,11 @@ static char character_handler_nsorf(char ch, char *line, size_t len, void *arg) 
 
     return ch;
 }
+*/
 
 static ssize_t nb501_socket_recv(struct cellular *modem, int connid, void *buffer, size_t length, int flags)
 {
-    struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
+    //struct cellular_nb501 *priv = (struct cellular_nb501 *) modem;
     (void) flags;
     return 0;
 }
