@@ -103,7 +103,7 @@ struct at *at_alloc_unix(const char *devpath, speed_t baudrate)
     memset(priv, 0, sizeof(struct at_unix));
 
     /* allocate underlying parser */
-    priv->at.parser = at_parser_alloc(&parser_callbacks, 256, (void *) priv);
+    priv->at.parser = at_parser_alloc(&parser_callbacks,(void *) priv);
     if (!priv->at.parser) {
         free(priv);
         return NULL;
@@ -205,7 +205,7 @@ void at_free(struct at *at)
     pthread_mutex_destroy(&priv->mutex);
 
     /* free up resources */
-    free(priv->at.parser);
+    //free(priv->at.parser);
     free(priv);
 }
 
@@ -227,9 +227,9 @@ void at_set_timeout(struct at *at, int timeout)
     priv->timeout = timeout;
 }
 
-void at_expect_dataprompt(struct at *at)
+void at_expect_dataprompt(struct at *at, const char *prompt)
 {
-    at_parser_expect_dataprompt(at->parser);
+    at_parser_expect_dataprompt(at->parser,prompt);
 }
 
 static const char *_at_command(struct at_unix *priv, const void *data, size_t size)

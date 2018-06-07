@@ -10,10 +10,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "debug.h"
+//#include "debug.h"
+#define DBG_V printf
 
 /* Defines -------------------------------------------------------------------*/
-DBG_SET_LEVEL(DBG_LEVEL_I);
+//DBG_SET_LEVEL(DBG_LEVEL_I);
 
 enum at_parser_state {
     STATE_IDLE,
