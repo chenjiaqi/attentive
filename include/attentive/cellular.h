@@ -91,7 +91,7 @@ struct cellular_ops {
     int (*onum)(struct cellular *modem, char *num);
 
 //    /** Read RTC date and time. Compatible with clock_gettime(). */
-//    int (*clock_gettime)(struct cellular *modem, struct timespec *ts);
+    int (*clock_gettime)(struct cellular *modem, struct timespec *ts);
 //    /** Set RTC date and time. Compatible with clock_settime(). */
 //    int (*clock_settime)(struct cellular *modem, const struct timespec *ts);
 //    /** Get network date and time. */

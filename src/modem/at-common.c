@@ -14,6 +14,8 @@
 #include "at-common.h"
 #include "debug.h"
 #define printf(...)
+#include "nrf_log.h"
+#include "time.h"
 
 
 #define PDP_RETRY_THRESHOLD_INITIAL     3
@@ -225,36 +227,42 @@ int cellular_op_onum(struct cellular *modem, char *num)
     return 0;
 }
 
-//int cellular_op_clock_gettime(struct cellular *modem, struct timespec *ts)
-//{
-//    struct tm tm;
+#if 1
+int cellular_op_clock_gettime(struct cellular *modem, struct timespec *ts)
+{
+    struct tm tm;
 
-//    at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
-//    const char *response = at_command(modem->at, "AT+CCLK?");
-//    memset(&tm, 0, sizeof(struct tm));
-//    at_simple_scanf(response, "+CCLK: \"%d/%d/%d,%d:%d:%d%*d\"",
-//            &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
-//            &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
+    at_set_timeout(modem->at, AT_TIMEOUT_SHORT);
+    const char *response = at_command(modem->at, "AT+CCLK?");
+    memset(&tm, 0, sizeof(struct tm));
+                             //+CCLK:18/06/08,13:35:56+00
+    at_simple_scanf(response, "+CCLK:%d/%d/%d,%d:%d:%d%*d",
+            &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+            &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
 
-//    /* Most modems report some starting date way in the past when they have
-//     * no date/time estimation. */
-//    if (tm.tm_year < 14) {
-//        return 1;
-//    }
+    /* Most modems report some starting date way in the past when they have
+     * no date/time estimation. */
+    if (tm.tm_year < 14) {
+        return 1;
+    }
+    
 
-//    /* Adjust values and perform conversion. */
-//    tm.tm_year += 2000 - 1900;
-//    tm.tm_mon -= 1;
-//    time_t unix_time = timegm(&tm);
-//    if (unix_time == -1) {
-//        return -1;
-//    }
+    /* Adjust values and perform conversion. */
+    tm.tm_year += 2000 - 1900;
+    tm.tm_mon -= 1;
+    time_t unix_time = timegm(&tm);
+    if (unix_time == -1) {
+        return -1;
+    }
 
-//    /* All good. Return the result. */
-//    ts->tv_sec = unix_time;
-//    ts->tv_nsec = 0;
-//    return 0;
-//}
+    /* All good. Return the result. */
+    //ts->tv_sec = unix_time;
+    ts->tv_sec = unix_time;
+    ts->tv_nsec = 0;
+    return 0;
+
+}
+#endif
 
 //int cellular_op_clock_settime(struct cellular *modem, const struct timespec *ts)
 //{

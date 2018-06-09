@@ -67,7 +67,7 @@ const char* cellular_op_command(struct cellular *modem, char *cmd, int timeout);
 int cellular_op_sms(struct cellular *modem, char* num, char* msg, size_t len);
 int cellular_op_cnum(struct cellular *modem, char *buf, size_t len);
 int cellular_op_onum(struct cellular *modem, char *num);
-//int cellular_op_clock_gettime(struct cellular *modem, struct timespec *ts);
+int cellular_op_clock_gettime(struct cellular *modem, struct timespec *ts);
 //int cellular_op_clock_settime(struct cellular *modem, const struct timespec *ts);
 
 #endif

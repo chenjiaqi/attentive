@@ -435,6 +435,7 @@ static const struct cellular_ops nb501_ops = {
     .socket_recv = nb501_socket_recv,
     .socket_waitack = nb501_socket_waitack,
     .socket_close = nb501_socket_close,
+    .clock_gettime = cellular_op_clock_gettime,
 };
 
 static struct cellular_nb501 cellular;
