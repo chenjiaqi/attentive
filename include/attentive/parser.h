@@ -128,6 +128,8 @@ void at_parser_free(struct at_parser *parser);
  */
 bool at_prefix_in_table(const char *line, const char *const table[]);
 
+void at_parser_show_residual(struct at_parser *parser);
+
 #endif
 
 /* vim: set ts=4 sw=4 et: */

@@ -17,9 +17,10 @@
 #include "hal_cfg.h"
 #define printf(...)
 #include "debug.h"
+#include <attentive/parser.h>
 
 /* Defines -------------------------------------------------------------------*/
-DBG_SET_LEVEL(DBG_LEVEL_I);
+DBG_SET_LEVEL(DBG_LEVEL_V);
 
 // Remove once you refactor this out.
 #define AT_COMMAND_LENGTH 80
@@ -81,11 +82,13 @@ static const struct at_parser_callbacks parser_callbacks = {
     .scan_line = scan_line,
 };
 
-struct at *at_alloc_freertos(void)
+struct at *at_alloc_freertos(hal_uart_t *uart)
 {
     static struct at_freertos at;
     struct at_freertos *priv = &at;
     memset(priv, 0, sizeof(struct at_freertos));
+
+    priv->xUART = uart;
 
     /* allocate underlying parser */
     priv->at.parser = at_parser_alloc(&parser_callbacks, (void *) priv);
@@ -95,7 +98,7 @@ struct at *at_alloc_freertos(void)
     /*priv->xMutex = xSemaphoreCreateBinary();*/
     // CAUSING: create the reader task at high priority
     priv->xSem = xSemaphoreCreateBinary();
-    xTaskCreate(at_reader_thread, "AT", 320, priv, 2, &priv->xTask);
+    xTaskCreate(at_reader_thread, "AT", 480, priv, 2, &priv->xTask);
 
     return (struct at *) priv;
 }
@@ -104,22 +107,6 @@ int at_open(struct at *at)
 {
     struct at_freertos *priv = (struct at_freertos *) at;
 
-    priv->xUART= hal_uart_get_instance(0);
-    if(!priv->xUART) {
-    return -1;
-    }
-    const hal_uart_cfg_t cfg = {
-        .baudrate = HAL_UART_BAUDRATE_19200,
-        .parity = HAL_UART_PARITY_NONE,
-        .tx_mode = HAL_UART_TX_MODE_NOCOPY,
-        .rx_mode = HAL_UART_RX_MODE_BUFFERED,
-        .rx_buf_size = 640,
-        .rx_timeout_ms = 200,
-        .tx_timeout_ms = 1000,
-        .tx_pin = HAL_CFG_CELL_TXD,
-        .rx_pin = HAL_CFG_CELL_RXD,
-    };
-    priv->xUART->ops->init(priv->xUART, &cfg);
     priv->xUART->ops->set_rx_enable(priv->xUART, true);
 
     priv->open = true;
@@ -246,7 +233,7 @@ static const char *_at_command(struct at_freertos *priv, const void *data, size_
         result = NULL;
     } else if (priv->waiting) {
         /* Timed out waiting for a response. */
-        void at_parser_show_residual(struct at_parser *parser);
+        //void at_parser_show_residual(struct at_parser *parser);
         at_parser_show_residual(priv->at.parser);
         at_parser_reset(priv->at.parser);
         result = NULL;
@@ -341,7 +328,7 @@ bool at_send_raw(struct at *at, const void *data, size_t size)
     return _at_send(priv, data, size);
 }
 
-inline void byte_to_hex(char byte, char* hex) {
+static void byte_to_hex(char byte, char* hex) {
     int h = byte & 0x0F;
     hex[1] = h < 10 ? '0' + h : 'A' + h - 10;
 
